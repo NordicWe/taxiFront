@@ -67,28 +67,32 @@ export default function HomePage() {
     setShowCarSizeModal(false);
   };
 
-  const handleBookNow = () => {
+  const handleBookNow = async () => {
     if (!name.trim() || !phone.trim()) {
       alert(lang === 'en' ? 'Please enter your name and phone number.' : 'Vänligen ange ditt namn och telefonnummer.');
       return;
     }
-    addBooking({
-      name: name.trim(),
-      phone: phone.trim(),
-      from,
-      to,
-      passengers,
-      luggage,
-      carSize: carSizes[selectedCarSize].label,
-      hasChild,
-      hasPet,
-      departureTime: departureTime === 'now' ? 'Now' : `${selectedDay} ${selectedTime}`,
-      price: passengers >= 5 ? 1095 : 595,
-    });
-    setBookingSuccess(true);
-    setName('');
-    setPhone('');
-    setTimeout(() => setBookingSuccess(false), 4000);
+    try {
+      await addBooking({
+        name: name.trim(),
+        phone: phone.trim(),
+        from,
+        to,
+        passengers,
+        luggage,
+        carSize: carSizes[selectedCarSize].label,
+        hasChild,
+        hasPet,
+        departureTime: departureTime === 'now' ? 'Now' : `${selectedDay} ${selectedTime}`,
+        price: passengers >= 5 ? 1095 : 595,
+      });
+      setBookingSuccess(true);
+      setName('');
+      setPhone('');
+      setTimeout(() => setBookingSuccess(false), 4000);
+    } catch {
+      alert(lang === 'en' ? 'Booking failed. Please try again.' : 'Bokning misslyckades. Försök igen.');
+    }
   };
 
   const days = [

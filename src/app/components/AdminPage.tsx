@@ -1,9 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router';
-import { type Booking, getBookings, updateBookingStatus, deleteBooking } from '../../utils/bookings';
-
-const ADMIN_USER = 'admin';
-const ADMIN_PASS = 'taxi2024';
+import { type Booking } from '../../utils/bookings';
+import { api, clearToken } from '../../utils/api';
 
 type StatusFilter = 'all' | Booking['status'];
 
@@ -21,47 +19,79 @@ const statusLabels: Record<Booking['status'], string> = {
   cancelled: 'Cancelled',
 };
 
-// Only these 3 statuses are usable in admin (no "confirmed")
-const USABLE_STATUSES = ['pending', 'completed', 'cancelled'] as const;
+const USABLE_STATUSES = ['pending', 'confirmed', 'completed', 'cancelled'] as const;
 
 export default function AdminPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [sortBy, setSortBy] = useState<'createdAt' | 'name'>('createdAt');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
+
+  const fetchBookings = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await api.getBookings();
+      setBookings(data);
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message.includes('401')) {
+        setIsLoggedIn(false);
+        clearToken();
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (isLoggedIn) setBookings(getBookings());
-  }, [isLoggedIn, refreshKey]);
+    if (isLoggedIn) fetchBookings();
+  }, [isLoggedIn, fetchBookings]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (username === ADMIN_USER && password === ADMIN_PASS) {
+    setLoginLoading(true);
+    setLoginError('');
+    try {
+      await api.login(username, password);
       setIsLoggedIn(true);
-      setLoginError('');
-    } else {
-      setLoginError('Incorrect username or password.');
+    } catch {
+      setLoginError('Нэвтрэх нэр эсвэл нууц үг буруу.');
+    } finally {
+      setLoginLoading(false);
     }
   };
 
-  const handleStatusChange = (id: string, status: Booking['status']) => {
-    updateBookingStatus(id, status);
-    setRefreshKey(k => k + 1);
-    if (selectedBooking?.id === id) setSelectedBooking(prev => prev ? { ...prev, status } : null);
+  const handleLogout = () => {
+    clearToken();
+    setIsLoggedIn(false);
+    setBookings([]);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm('Delete this booking?')) {
-      deleteBooking(id);
-      setRefreshKey(k => k + 1);
+  const handleStatusChange = async (id: string, status: Booking['status']) => {
+    try {
+      await api.updateStatus(id, status);
+      setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
+      if (selectedBooking?.id === id) setSelectedBooking(prev => prev ? { ...prev, status } : null);
+    } catch (err) {
+      alert('Статус өөрчлөхөд алдаа гарлаа');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this booking?')) return;
+    try {
+      await api.deleteBooking(id);
+      setBookings(prev => prev.filter(b => b.id !== id));
       if (selectedBooking?.id === id) setSelectedBooking(null);
+    } catch {
+      alert('Устгахад алдаа гарлаа');
     }
   };
 
@@ -134,14 +164,12 @@ export default function AdminPage() {
               )}
               <button
                 type="submit"
-                className="w-full bg-[#efbf04] hover:bg-[#d9ab03] text-black font-bold py-3 rounded-xl transition-all active:scale-95 shadow-lg shadow-[#efbf04]/20 mt-2"
+                disabled={loginLoading}
+                className="w-full bg-[#efbf04] hover:bg-[#d9ab03] disabled:opacity-60 text-black font-bold py-3 rounded-xl transition-all active:scale-95 shadow-lg shadow-[#efbf04]/20 mt-2"
               >
-                Sign In
+                {loginLoading ? 'Нэвтэрч байна...' : 'Sign In'}
               </button>
             </form>
-            <div className="mt-6 pt-4 border-t border-white/10 text-center">
-              <p className="text-xs text-gray-500">Demo: admin / taxi2024</p>
-            </div>
           </div>
 
           <div className="text-center mt-6">
@@ -174,11 +202,18 @@ export default function AdminPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <button
+                onClick={fetchBookings}
+                disabled={loading}
+                className="text-sm text-gray-500 hover:text-gray-800 transition-colors hidden sm:block disabled:opacity-50"
+              >
+                {loading ? 'Уншиж байна...' : '↻ Refresh'}
+              </button>
               <Link to="/" className="text-sm text-gray-500 hover:text-gray-800 transition-colors hidden sm:block">
                 Back to site
               </Link>
               <button
-                onClick={() => setIsLoggedIn(false)}
+                onClick={handleLogout}
                 className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-4 py-2 rounded-xl transition-all"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -198,7 +233,7 @@ export default function AdminPage() {
           <p className="text-gray-500 text-sm mt-1">View and manage all taxi bookings.</p>
         </div>
 
-        {/* Stats — no revenue, no confirmed */}
+        {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Total</p>
@@ -239,7 +274,6 @@ export default function AdminPage() {
               />
             </div>
 
-            {/* Status filters — only 3 usable statuses + All */}
             <div className="flex gap-2 flex-wrap">
               {(['all', ...USABLE_STATUSES] as const).map(s => (
                 <button
@@ -264,126 +298,135 @@ export default function AdminPage() {
             </select>
           </div>
 
+          {/* Loading */}
+          {loading && (
+            <div className="text-center py-12 text-gray-400 text-sm">Уншиж байна...</div>
+          )}
+
           {/* Desktop Table */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/50">
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">ID</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Passenger</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Route</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Departure</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Vehicle</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Status</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="text-center py-16 text-gray-400 text-sm">No bookings found</td>
+          {!loading && (
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50/50">
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">ID</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Passenger</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Route</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Departure</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Vehicle</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Status</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Action</th>
                   </tr>
-                ) : (
-                  filtered.map(booking => (
-                    <tr
-                      key={booking.id}
-                      onClick={() => setSelectedBooking(booking)}
-                      className="hover:bg-gray-50/80 cursor-pointer transition-colors"
-                    >
-                      <td className="px-5 py-4 text-xs font-mono text-gray-400">{booking.id}</td>
-                      <td className="px-5 py-4">
-                        <p className="text-sm font-semibold text-gray-900">{booking.name}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">{booking.phone}</p>
-                      </td>
-                      <td className="px-5 py-4">
-                        <p className="text-sm text-gray-700">📍 {booking.from}</p>
-                        <p className="text-sm text-gray-700 mt-0.5">🏁 {booking.to}</p>
-                      </td>
-                      <td className="px-5 py-4 text-sm text-gray-600 whitespace-nowrap">{booking.departureTime}</td>
-                      <td className="px-5 py-4">
-                        <p className="text-sm text-gray-700">{booking.carSize}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          {booking.passengers}👤 {booking.luggage}🧳
-                          {booking.hasChild ? ' 👶' : ''}
-                          {booking.hasPet ? ' 🐾' : ''}
-                        </p>
-                      </td>
-                      <td className="px-5 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${statusColors[booking.status]}`}>
-                          {statusLabels[booking.status]}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                          <select
-                            value={booking.status}
-                            onChange={e => handleStatusChange(booking.id, e.target.value as Booking['status'])}
-                            className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-[#efbf04] bg-white"
-                          >
-                            {USABLE_STATUSES.map(s => (
-                              <option key={s} value={s}>{statusLabels[s]}</option>
-                            ))}
-                          </select>
-                          <button
-                            onClick={() => handleDelete(booking.id)}
-                            className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="text-center py-16 text-gray-400 text-sm">No bookings found</td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ) : (
+                    filtered.map(booking => (
+                      <tr
+                        key={booking.id}
+                        onClick={() => setSelectedBooking(booking)}
+                        className="hover:bg-gray-50/80 cursor-pointer transition-colors"
+                      >
+                        <td className="px-5 py-4 text-xs font-mono text-gray-400">{booking.id.slice(0, 8)}…</td>
+                        <td className="px-5 py-4">
+                          <p className="text-sm font-semibold text-gray-900">{booking.name}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{booking.phone}</p>
+                        </td>
+                        <td className="px-5 py-4">
+                          <p className="text-sm text-gray-700">📍 {booking.from}</p>
+                          <p className="text-sm text-gray-700 mt-0.5">🏁 {booking.to}</p>
+                        </td>
+                        <td className="px-5 py-4 text-sm text-gray-600 whitespace-nowrap">{booking.departureTime}</td>
+                        <td className="px-5 py-4">
+                          <p className="text-sm text-gray-700">{booking.carSize}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {booking.passengers}👤 {booking.luggage}🧳
+                            {booking.hasChild ? ' 👶' : ''}
+                            {booking.hasPet ? ' 🐾' : ''}
+                          </p>
+                        </td>
+                        <td className="px-5 py-4">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${statusColors[booking.status]}`}>
+                            {statusLabels[booking.status]}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                            <select
+                              value={booking.status}
+                              onChange={e => handleStatusChange(booking.id, e.target.value as Booking['status'])}
+                              className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-[#efbf04] bg-white"
+                            >
+                              {USABLE_STATUSES.map(s => (
+                                <option key={s} value={s}>{statusLabels[s]}</option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => handleDelete(booking.id)}
+                              className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Mobile Cards */}
-          <div className="md:hidden divide-y divide-gray-100">
-            {filtered.length === 0 ? (
-              <p className="text-center py-12 text-gray-400 text-sm">No bookings found</p>
-            ) : (
-              filtered.map(booking => (
-                <div key={booking.id} className="p-4" onClick={() => setSelectedBooking(booking)}>
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <p className="font-semibold text-gray-900">{booking.name}</p>
-                      <p className="text-sm text-gray-400">{booking.phone}</p>
+          {!loading && (
+            <div className="md:hidden divide-y divide-gray-100">
+              {filtered.length === 0 ? (
+                <p className="text-center py-12 text-gray-400 text-sm">No bookings found</p>
+              ) : (
+                filtered.map(booking => (
+                  <div key={booking.id} className="p-4" onClick={() => setSelectedBooking(booking)}>
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <p className="font-semibold text-gray-900">{booking.name}</p>
+                        <p className="text-sm text-gray-400">{booking.phone}</p>
+                      </div>
+                      <span className={`inline-flex items-center px-2 py-1 rounded-lg text-xs font-semibold ${statusColors[booking.status]}`}>
+                        {statusLabels[booking.status]}
+                      </span>
                     </div>
-                    <span className={`inline-flex items-center px-2 py-1 rounded-lg text-xs font-semibold ${statusColors[booking.status]}`}>
-                      {statusLabels[booking.status]}
-                    </span>
+                    <div className="bg-gray-50 rounded-xl p-3 mb-3">
+                      <p className="text-sm text-gray-600">📍 {booking.from} → 🏁 {booking.to}</p>
+                      <p className="text-xs text-gray-400 mt-1">⏰ {booking.departureTime}</p>
+                    </div>
+                    <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+                      <select
+                        value={booking.status}
+                        onChange={e => handleStatusChange(booking.id, e.target.value as Booking['status'])}
+                        className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-[#efbf04] bg-white"
+                      >
+                        {USABLE_STATUSES.map(s => (
+                          <option key={s} value={s}>{statusLabels[s]}</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => handleDelete(booking.id)}
+                        className="px-3 py-2 text-red-500 bg-red-50 rounded-xl hover:bg-red-100 transition-all"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
-                  <div className="bg-gray-50 rounded-xl p-3 mb-3">
-                    <p className="text-sm text-gray-600">📍 {booking.from} → 🏁 {booking.to}</p>
-                    <p className="text-xs text-gray-400 mt-1">⏰ {booking.departureTime}</p>
-                  </div>
-                  <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                    <select
-                      value={booking.status}
-                      onChange={e => handleStatusChange(booking.id, e.target.value as Booking['status'])}
-                      className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-[#efbf04] bg-white"
-                    >
-                      {USABLE_STATUSES.map(s => (
-                        <option key={s} value={s}>{statusLabels[s]}</option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => handleDelete(booking.id)}
-                      className="px-3 py-2 text-red-500 bg-red-50 rounded-xl hover:bg-red-100 transition-all"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+                ))
+              )}
+            </div>
+          )}
 
           <div className="px-5 py-3.5 border-t border-gray-100 bg-gray-50/50 text-xs text-gray-400">
             Showing {filtered.length} of {bookings.length} bookings
@@ -445,11 +488,14 @@ export default function AdminPage() {
                   {selectedBooking.hasChild && <span className="bg-blue-50 border border-blue-200 text-blue-700 text-xs px-3 py-1 rounded-lg">👶 Child seat</span>}
                   {selectedBooking.hasPet && <span className="bg-orange-50 border border-orange-200 text-orange-700 text-xs px-3 py-1 rounded-lg">🐾 Pet</span>}
                 </div>
+                {selectedBooking.price > 0 && (
+                  <p className="text-sm font-bold text-gray-900 mt-3">{selectedBooking.price} SEK</p>
+                )}
               </div>
 
               <div>
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Update Status</p>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   {USABLE_STATUSES.map(s => (
                     <button
                       key={s}
