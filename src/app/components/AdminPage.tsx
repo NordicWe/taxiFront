@@ -344,7 +344,7 @@ export default function AdminPage() {
                         <td className="px-5 py-4">
                           <p className="text-sm text-gray-700">{booking.carSize}</p>
                           <p className="text-xs text-gray-400 mt-0.5">
-                            {booking.passengers}👤 {booking.luggage}🧳
+                            {booking.passengers}👤
                             {booking.hasChild ? ' 👶' : ''}
                             {booking.hasPet ? ' 🐾' : ''}
                           </p>
@@ -489,7 +489,6 @@ export default function AdminPage() {
                 <p className="text-sm font-semibold text-gray-900 mb-2">{selectedBooking.carSize}</p>
                 <div className="flex flex-wrap gap-2">
                   <span className="bg-white border border-gray-200 text-gray-600 text-xs px-3 py-1 rounded-lg">👤 {selectedBooking.passengers} passengers</span>
-                  <span className="bg-white border border-gray-200 text-gray-600 text-xs px-3 py-1 rounded-lg">🧳 {selectedBooking.luggage} bags</span>
                   {selectedBooking.hasChild && <span className="bg-blue-50 border border-blue-200 text-blue-700 text-xs px-3 py-1 rounded-lg">👶 Child seat</span>}
                   {selectedBooking.hasPet && <span className="bg-orange-50 border border-orange-200 text-orange-700 text-xs px-3 py-1 rounded-lg">🐾 Pet</span>}
                 </div>

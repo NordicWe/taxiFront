@@ -8,7 +8,6 @@ export interface Booking {
   from: string;
   to: string;
   passengers: number;
-  luggage: number;
   carSize: string;
   hasChild: boolean;
   hasPet: boolean;

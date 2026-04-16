@@ -6,7 +6,6 @@ import imgBackground from "../../assets/background.png";
 import imgBlackCopy34X1 from "figma:asset/5ebefb298d45f77f13c9f3c3d21fc45a4fcd64f7.png";
 import imgCalendar2 from "figma:asset/71c8f9b1d75289bccd801730d48cdb10aa1d3ea0.png";
 import imgUser2 from "figma:asset/8aa237a7f5aede14c1e28d9f958d1bdd0d9c5cd9.png";
-import imgLuggage2 from "figma:asset/7872b6e84deef344b2e5b3147587e30662b974cb.png";
 import imgToddler2 from "figma:asset/813fe78407af17963e4b54add032c87b1900d292.png";
 import imgPawprint2 from "figma:asset/560e216b22c0a68f1591edc5029f1d965aba8ba3.png";
 import imgSweden1 from "figma:asset/854638555389ddcac54d066581f19318be52d6b1.png";
@@ -19,19 +18,39 @@ import imgBlackCopy24X1 from "figma:asset/3c567e19fb5378f6ac3879e4a5d32c02227218
 import imgCar2 from "figma:asset/f8ff77d6247b49d7a0f7da10724acf94c9cebace.png";
 import imgCar5 from "figma:asset/ec3d4b031d3633d9bfc6399a2acf969b9caaae31.png";
 import imgUser12 from "figma:asset/ff85d0c52f1a84effb22fc31361c68690977a8a9.png";
-import imgLuggage12 from "figma:asset/5a95a5a4916950964bf3c2069c6999e5c5888d1e.png";
 import imgTimeLeft2 from "figma:asset/25722d3a34844e7fa0546a18766dfd34c494c807.png";
 import { addBooking } from '../../utils/bookings';
 import { loadGoogleMaps } from '../../utils/loadGoogleMaps';
 import PlacesAutocomplete from '../../components/PlacesAutocomplete';
 
-interface CarSize { passengers: number; luggage: number; label: string }
+interface CarSize { passengers: number; label: string }
 
 const carSizes: CarSize[] = [
-  { passengers: 4, luggage: 3, label: '4 Seats' },
-  { passengers: 6, luggage: 5, label: '6 Seats' },
-  { passengers: 7, luggage: 7, label: '6 Seats Bus' },
+  { passengers: 4, label: '4 Seats' },
+  { passengers: 6, label: '6 Seats' },
+  { passengers: 6, label: '6 Seats Bus' },
 ];
+
+// ── Date helpers ────────────────────────────────────────────────────────────
+function getDateForDay(key: string): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  const bump = (n: number) => { d.setDate(d.getDate() + n); return d; };
+  if (key === 'tomorrow') return bump(1);
+  if (key === 'monday')   return bump((1 - d.getDay() + 7) % 7 || 7);
+  if (key === 'tuesday')  return bump((2 - d.getDay() + 7) % 7 || 7);
+  return d; // today / later
+}
+
+function fmtDate(d: Date): string {
+  return d.toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' }); // "17 apr"
+}
+
+function buildDepartureTime(dayKey: string, time: string): string {
+  const d = getDateForDay(dayKey);
+  const label = d.toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', year: 'numeric' });
+  return `${label} ${time}`; // "17 apr 2026 18:00"
+}
 
 
 export default function HomePage() {
@@ -47,7 +66,6 @@ export default function HomePage() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [passengers, setPassengers] = useState(4);
-  const [luggage, setLuggage] = useState(3);
   const [hasChild, setHasChild] = useState(false);
   const [hasPet, setHasPet] = useState(false);
   const [departureTime, setDepartureTime] = useState('now');
@@ -71,13 +89,14 @@ export default function HomePage() {
   const handleCarSizeSelect = (index: number) => {
     setSelectedCarSize(index);
     setPassengers(carSizes[index].passengers);
-    setLuggage(carSizes[index].luggage);
     setShowCarSizeModal(false);
   };
 
   const handleBookNow = async () => {
-    if (!name.trim() || !phone.trim()) {
-      alert(lang === 'en' ? 'Please enter your name and phone number.' : 'Vänligen ange ditt namn och telefonnummer.');
+    if (!name.trim() || !email.trim() || !phone.trim()) {
+      alert(lang === 'en'
+        ? 'Please fill in your name, email and phone number.'
+        : 'Vänligen fyll i ditt namn, e-post och telefonnummer.');
       return;
     }
     try {
@@ -88,11 +107,12 @@ export default function HomePage() {
         from,
         to,
         passengers,
-        luggage,
         carSize: carSizes[selectedCarSize].label,
         hasChild,
         hasPet,
-        departureTime: departureTime === 'now' ? 'Now' : `${selectedDay} ${selectedTime}`,
+        departureTime: departureTime === 'now'
+          ? new Date().toLocaleString('sv-SE', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+          : buildDepartureTime(selectedDay, selectedTime),
         price: passengers >= 5 ? 1095 : 595,
       });
       setBookingSuccess(true);
@@ -106,11 +126,10 @@ export default function HomePage() {
   };
 
   const days = [
-    { key: 'today', label: tr.today },
-    { key: 'tomorrow', label: tr.tomorrow },
-    { key: 'monday', label: tr.monday },
-    { key: 'tuesday', label: tr.tuesday },
-    { key: 'later', label: tr.later },
+    { key: 'today',    label: tr.today,    date: fmtDate(getDateForDay('today')) },
+    { key: 'tomorrow', label: tr.tomorrow, date: fmtDate(getDateForDay('tomorrow')) },
+    { key: 'monday',   label: tr.monday,   date: fmtDate(getDateForDay('monday')) },
+    { key: 'tuesday',  label: tr.tuesday,  date: fmtDate(getDateForDay('tuesday')) },
   ];
 
   return (
@@ -287,8 +306,10 @@ export default function HomePage() {
               className="flex flex-col items-center justify-center gap-1 h-full px-4 border-l border-gray-100 hover:bg-gray-50 transition-colors flex-shrink-0 min-w-[80px]"
             >
               <img alt="Calendar" className="h-4 w-4 opacity-40" src={imgCalendar2} />
-              <span className="text-[10px] font-semibold text-gray-600 whitespace-nowrap">
-                {departureTime === 'now' ? tr.travelNow : `${selectedDay} ${selectedTime}`}
+              <span className="text-[10px] font-semibold text-gray-600 text-center leading-tight">
+                {departureTime === 'now'
+                  ? tr.travelNow
+                  : <>{fmtDate(getDateForDay(selectedDay))}<br />{selectedTime}</>}
               </span>
             </button>
           </div>
@@ -329,7 +350,7 @@ export default function HomePage() {
             <div className="border border-gray-200 focus-within:border-[#efbf04] focus-within:ring-1 focus-within:ring-[#efbf04]/30 rounded-xl h-[42px] px-4 flex items-center transition-all bg-gray-50/50">
               <input
                 type="email"
-                placeholder="Email (optional)"
+                placeholder="Email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 className="w-full font-medium text-sm text-gray-800 placeholder:text-gray-400 outline-none bg-transparent"
@@ -356,11 +377,8 @@ export default function HomePage() {
               <div className="flex items-center gap-1 mb-1">
                 <span className="text-lg font-bold leading-none">{passengers}</span>
                 <img alt="" className="h-3.5 w-3.5 brightness-0 invert" src={imgUser2} />
-                <span className="text-sm opacity-40">·</span>
-                <span className="text-lg font-bold leading-none">{luggage}</span>
-                <img alt="" className="h-3.5 w-3.5 brightness-0 invert" src={imgLuggage2} />
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-wide opacity-90">{tr.vehicle}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wide opacity-90">{carSizes[selectedCarSize].label}</span>
             </button>
 
             {/* Child Seat */}
@@ -511,17 +529,11 @@ export default function HomePage() {
                           : 'border-gray-200 hover:bg-gray-50 hover:border-gray-300'
                       }`}
                     >
-                      <img alt="" className="h-8 w-8" src={index === selectedCarSize ? imgCar5 : imgCar2} />
+                      <img alt="" className="h-8 w-8" src={index === 2 ? imgCar5 : imgCar2} />
                       <span className={`font-bold text-base flex-1 text-left ${index === selectedCarSize ? 'text-white' : 'text-gray-800'}`}>{car.label}</span>
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`font-bold text-lg ${index === selectedCarSize ? 'text-white' : 'text-gray-700'}`}>{car.passengers}</span>
-                          <img alt="" className="h-5 w-5" src={imgUser12} />
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className={`font-bold text-lg ${index === selectedCarSize ? 'text-white' : 'text-gray-700'}`}>{car.luggage}</span>
-                          <img alt="" className="h-5 w-5" src={imgLuggage12} />
-                        </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`font-bold text-lg ${index === selectedCarSize ? 'text-white' : 'text-gray-700'}`}>{car.passengers}</span>
+                        <img alt="" className="h-5 w-5" src={imgUser12} />
                       </div>
                     </button>
                   ))}
@@ -554,11 +566,12 @@ export default function HomePage() {
                     <button
                       key={d.key}
                       onClick={() => setSelectedDay(d.key)}
-                      className={`flex-1 min-w-[56px] h-[32px] px-2 rounded-lg font-semibold text-xs transition-all whitespace-nowrap ${
+                      className={`flex-1 min-w-[64px] h-auto py-1.5 px-2 rounded-lg font-semibold text-xs transition-all whitespace-nowrap leading-tight ${
                         selectedDay === d.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                       }`}
                     >
-                      {d.label}
+                      <span className="block">{d.label}</span>
+                      <span className="block text-[10px] font-normal opacity-70">{d.date}</span>
                     </button>
                   ))}
                 </div>
