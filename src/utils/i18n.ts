@@ -258,7 +258,6 @@ export const t = {
     bookingHours: 'Bokning',
     monSun: 'Mån–Sön · 24 timmar',
     downloadApp: 'Ladda ner app',
-    swedish: '(Svensk marknad)',
     travelTerms: 'Resevillkor',
     gdpr: 'GDPR-policy',
     safety: 'Säkerhetspolicy',
