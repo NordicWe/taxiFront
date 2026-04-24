@@ -149,31 +149,47 @@ export default function PricePage() {
         </div>
 
         {/* Price Info Table */}
-        <div className="mt-12 border border-gray-200 rounded-2xl overflow-hidden max-w-[560px] shadow-sm">
+        <div className="mt-12 border border-gray-200 rounded-2xl overflow-hidden max-w-[720px] shadow-sm">
           <div className="bg-gray-50 px-5 py-4 border-b border-gray-200">
             <p className="font-bold text-gray-900 text-base">{tr.priceInfoTitle}</p>
           </div>
-          <div className="px-5 py-4 border-b border-gray-200">
-            <p className="font-bold text-gray-800 text-base uppercase tracking-wide">{tr.priceInfoSubTitle}</p>
+          <div className="px-5 py-4 border-b border-gray-200 bg-[#efbf04]">
+            <p className="font-bold text-gray-900 text-lg uppercase tracking-wide text-center">{tr.uppsalaTaxiPrices}</p>
           </div>
-          <div className="bg-[#efbf04]">
-            <div className="grid grid-cols-2">
-              <div className="p-4 sm:p-5 border-r border-black/10">
-                <p className="font-bold text-gray-900 text-base mb-2">{tr.when}</p>
-                <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-line">{tr.weekdays}</p>
-              </div>
-              <div className="p-4 sm:p-5">
-                <p className="font-bold text-gray-900 text-base text-center mb-2">{tr.comparisonPrice}</p>
-                <p className="text-sm text-gray-800 text-center">{tr.comparisonDesc}</p>
-                <p className="font-black text-2xl text-gray-900 text-center mt-2">499 SEK</p>
-              </div>
-            </div>
-            <div className="border-t border-black/10 py-8 text-center">
-              <p className="font-black text-5xl sm:text-[65px] text-gray-900 tracking-tight">499 SEK</p>
-            </div>
-          </div>
-          <div className="px-5 py-4 border-t border-gray-200">
-            <p className="font-semibold text-gray-800 text-sm text-center leading-relaxed">{tr.highestComparison}</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="px-4 sm:px-5 py-3 font-bold text-gray-800 text-sm uppercase tracking-wide">{tr.fromCol}</th>
+                  <th className="px-4 sm:px-5 py-3 font-bold text-gray-800 text-sm uppercase tracking-wide">{tr.toCol}</th>
+                  <th className="px-4 sm:px-5 py-3 font-bold text-gray-800 text-sm uppercase tracking-wide text-right">{tr.priceCol}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { to: 'Arlanda flygplats (ARN)', price: '595 kr' },
+                  { to: 'Bromma flygplats (BMA)', price: '965 kr' },
+                  { to: 'Skavsta flygplats (NYO)', price: '2280 kr' },
+                  { to: 'Västerås flygplats (VST)', price: '1045 kr' },
+                  { to: 'Cityterminalen Centralstation', price: '1005 kr' },
+                  { to: 'Arlanda Express Tåget', price: '990 kr' },
+                  { to: 'Älvsjö Mässan', price: '1095 kr' },
+                  { to: 'Kista Mässan', price: '875 kr' },
+                  { to: 'Globen', price: '1120 kr' },
+                  { to: 'Enköping', price: '700 kr' },
+                  { to: 'Uppsala (inom stad)', price: '110 kr' },
+                  { to: 'Viking Line', price: '1035 kr' },
+                  { to: 'Silja Line', price: '1005 kr' },
+                  { to: 'Birka Cruises', price: '1035 kr' },
+                ].map((row, i) => (
+                  <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="px-4 sm:px-5 py-3 text-sm text-gray-700 font-medium">{tr.uppsalaLabel}</td>
+                    <td className="px-4 sm:px-5 py-3 text-sm text-gray-700">{row.to}</td>
+                    <td className="px-4 sm:px-5 py-3 text-sm font-bold text-gray-900 text-right whitespace-nowrap">{row.price}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
           <div className="px-5 py-4 border-t border-gray-200 bg-amber-50">
             <p className="font-bold text-gray-900 text-sm flex items-center gap-2">🧾 {tr.taxiReceipt}</p>

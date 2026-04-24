@@ -5,6 +5,7 @@ import HomePage from './components/HomePage';
 import PricePage from './components/PricePage';
 import AboutPage from './components/AboutPage';
 import AdminPage from './components/AdminPage';
+import Chatbot from './components/Chatbot';
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
 
 function AppContent() {
   const location = useLocation();
+  const hideChatbot = location.pathname.startsWith('/admin');
 
   return (
     <div className="min-h-screen bg-white">
@@ -29,6 +31,7 @@ function AppContent() {
           <Route path="/admin" element={<AdminPage />} />
         </Routes>
       </AnimatePresence>
+      {!hideChatbot && <Chatbot />}
     </div>
   );
 }

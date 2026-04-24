@@ -131,6 +131,13 @@ export const t = {
 
     // Price page dispatch
     dispatchOpen: 'Our dispatch center is open 24 hours a day, every day of the week. You can easily book your taxi at any time.',
+
+    // Price table
+    uppsalaTaxiPrices: 'Uppsala Taxi Prices',
+    fromCol: 'From',
+    toCol: 'To',
+    priceCol: 'Price',
+    uppsalaLabel: 'Uppsala',
   },
 
   sv: {
@@ -266,6 +273,13 @@ export const t = {
 
     // Price page dispatch
     dispatchOpen: 'Vår beställningscentral är öppen dygnet runt, alla dagar i veckan. Du kan enkelt boka din taxi när som helst.',
+
+    // Price table
+    uppsalaTaxiPrices: 'Uppsala Taxi Priser',
+    fromCol: 'Från',
+    toCol: 'Till',
+    priceCol: 'Pris',
+    uppsalaLabel: 'Uppsala',
   },
 } as const;
 
