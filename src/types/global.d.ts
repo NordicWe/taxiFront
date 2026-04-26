@@ -1,14 +1,7 @@
-/// <reference types="@types/google.maps" />
 /// <reference types="vite/client" />
 
-declare global {
-  interface Window {
-    google: typeof google;
-  }
-}
-
 interface ImportMetaEnv {
-  readonly VITE_GOOGLE_MAPS_API_KEY: string;
+  // (Google Maps удаа арилсан — Photon API key хэрэггүй)
 }
 
 interface ImportMeta {

@@ -13,6 +13,47 @@ interface Props {
   className?: string;
 }
 
+// Photon-д хайлтыг Уппсала орчмын ойролцоох үр дүн дээр түлхүү харуулна
+const UPPSALA_LAT = 59.8586;
+const UPPSALA_LON = 17.6389;
+const PHOTON_URL = 'https://photon.komoot.io/api/';
+
+interface PhotonProps {
+  osm_id?: number;
+  osm_type?: string;
+  name?: string;
+  street?: string;
+  housenumber?: string;
+  postcode?: string;
+  city?: string;
+  country?: string;
+  state?: string;
+  type?: string;
+}
+
+interface PhotonFeature {
+  geometry?: { coordinates?: [number, number] };
+  properties: PhotonProps;
+}
+
+// Photon properties → Google "description" хэлбэртэй текст болгоно
+function formatLabel(p: PhotonProps): string {
+  const name = p.name || '';
+  const street = p.housenumber && p.street ? `${p.street} ${p.housenumber}` : (p.street || '');
+  const local = [p.postcode, p.city].filter(Boolean).join(' ');
+
+  const segs: string[] = [];
+  if (name) segs.push(name);
+  if (street && street !== name) segs.push(street);
+  if (local && local !== name && local !== street) segs.push(local);
+  if (p.country && !segs.some(s => s.includes(p.country!))) {
+    // зөвхөн Sweden биш үед нэмж харуулна
+    if (p.country !== 'Sverige' && p.country !== 'Sweden') segs.push(p.country);
+  }
+
+  return segs.join(', ');
+}
+
 export default function PlacesAutocomplete({
   value,
   onChange,
@@ -22,41 +63,61 @@ export default function PlacesAutocomplete({
 }: Props) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [open, setOpen] = useState(false);
-  const serviceRef = useRef<google.maps.places.AutocompleteService | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const abortRef = useRef<AbortController | null>(null);
 
-  // AutocompleteService — Google Maps ачаалагдсаны дараа үүснэ
+  // Цэвэрлэгээ: component unmount-д сүүлийн request-ийг цуцална
   useEffect(() => {
-    const init = () => {
-      if (window.google?.maps?.places?.AutocompleteService) {
-        serviceRef.current = new google.maps.places.AutocompleteService();
-      }
+    return () => {
+      abortRef.current?.abort();
+      clearTimeout(debounceRef.current);
     };
-    init();
-    if (!serviceRef.current) {
-      const id = setInterval(() => { init(); if (serviceRef.current) clearInterval(id); }, 300);
-      return () => clearInterval(id);
-    }
   }, []);
 
-  const fetchSuggestions = useCallback((input: string) => {
-    if (!serviceRef.current || input.trim().length < 2) {
+  const fetchSuggestions = useCallback(async (input: string) => {
+    if (input.trim().length < 2) {
       setSuggestions([]);
       setOpen(false);
       return;
     }
-    serviceRef.current.getPlacePredictions(
-      { input },
-      (predictions, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
-          setSuggestions(predictions.slice(0, 5));
-          setOpen(true);
-        } else {
-          setSuggestions([]);
-          setOpen(false);
-        }
-      },
-    );
+
+    // Өмнөх хүсэлт явж байгаа бол цуцална (race condition-оос хамгаална)
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    try {
+      // Photon supports lang: de, en, fr, it (sv-г дэмждэггүй).
+      // "default" — OSM-ийн орон нутгийн name (Швед-д шведээр гарна).
+      const params = new URLSearchParams({
+        q: input,
+        lang: 'default',
+        limit: '5',
+        lat: String(UPPSALA_LAT),
+        lon: String(UPPSALA_LON),
+      });
+      const res = await fetch(`${PHOTON_URL}?${params.toString()}`, {
+        signal: controller.signal,
+      });
+      if (!res.ok) throw new Error(`Photon HTTP ${res.status}`);
+      const data: { features?: PhotonFeature[] } = await res.json();
+
+      const items: Suggestion[] = (data.features || [])
+        .map((f, idx) => ({
+          place_id: `${f.properties.osm_type ?? 'X'}${f.properties.osm_id ?? idx}`,
+          description: formatLabel(f.properties),
+        }))
+        .filter(s => s.description);
+
+      setSuggestions(items);
+      setOpen(items.length > 0);
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') {
+        console.error('Photon autocomplete error:', e);
+        setSuggestions([]);
+        setOpen(false);
+      }
+    }
   }, []);
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {

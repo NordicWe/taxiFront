@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLang } from '../../context/LanguageContext';
@@ -20,7 +20,6 @@ import imgCar5 from "figma:asset/ec3d4b031d3633d9bfc6399a2acf969b9caaae31.png";
 import imgUser12 from "figma:asset/ff85d0c52f1a84effb22fc31361c68690977a8a9.png";
 import imgTimeLeft2 from "figma:asset/25722d3a34844e7fa0546a18766dfd34c494c807.png";
 import { addBooking } from '../../utils/bookings';
-import { loadGoogleMaps } from '../../utils/loadGoogleMaps';
 import PlacesAutocomplete from '../../components/PlacesAutocomplete';
 
 interface CarSize { passengers: number; label: string }
@@ -72,14 +71,6 @@ export default function HomePage() {
   const [selectedDay, setSelectedDay] = useState('today');
   const [selectedTime, setSelectedTime] = useState('18:00');
   const [bookingSuccess, setBookingSuccess] = useState(false);
-  const [mapsReady, setMapsReady] = useState(false);
-
-  // Load Google Maps Places once
-  useEffect(() => {
-    loadGoogleMaps()
-      .then(() => setMapsReady(true))
-      .catch(() => setMapsReady(false));
-  }, []);
 
   const swapRoute = () => {
     setFrom(to);
@@ -241,49 +232,23 @@ export default function HomePage() {
             <div className="flex flex-col flex-1 divide-y divide-gray-100">
               {/* From */}
               <div className="h-[52px] flex items-center px-4">
-                {mapsReady ? (
-                  <PlacesAutocomplete
-                    value={from}
-                    onChange={setFrom}
-                    placeholder="from..."
-                    dotColor="#efbf04"
-                    className="w-full"
-                  />
-                ) : (
-                  <div className="flex items-center gap-2 w-full">
-                    <div className="w-2.5 h-2.5 rounded-full bg-[#efbf04] flex-shrink-0" />
-                    <input
-                      type="text"
-                      value={from}
-                      onChange={e => setFrom(e.target.value)}
-                      placeholder="from..."
-                      className="w-full font-bold text-sm text-gray-900 placeholder:text-gray-400 placeholder:font-normal outline-none bg-transparent"
-                    />
-                  </div>
-                )}
+                <PlacesAutocomplete
+                  value={from}
+                  onChange={setFrom}
+                  placeholder="from..."
+                  dotColor="#efbf04"
+                  className="w-full"
+                />
               </div>
               {/* To */}
               <div className="h-[52px] flex items-center px-4">
-                {mapsReady ? (
-                  <PlacesAutocomplete
-                    value={to}
-                    onChange={setTo}
-                    placeholder="To..."
-                    dotColor="#9ca3af"
-                    className="w-full"
-                  />
-                ) : (
-                  <div className="flex items-center gap-2 w-full">
-                    <div className="w-2.5 h-2.5 rounded-full bg-gray-400 flex-shrink-0" />
-                    <input
-                      type="text"
-                      value={to}
-                      onChange={e => setTo(e.target.value)}
-                      placeholder="to..."
-                      className="w-full font-bold text-sm text-gray-900 placeholder:text-gray-400 placeholder:font-normal outline-none bg-transparent"
-                    />
-                  </div>
-                )}
+                <PlacesAutocomplete
+                  value={to}
+                  onChange={setTo}
+                  placeholder="To..."
+                  dotColor="#9ca3af"
+                  className="w-full"
+                />
               </div>
             </div>
 
