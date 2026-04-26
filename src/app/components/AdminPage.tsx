@@ -4,6 +4,120 @@ import { type Booking } from '../../utils/bookings';
 import { api, clearToken } from '../../utils/api';
 
 type StatusFilter = 'all' | Booking['status'];
+type Lang = 'en' | 'sv';
+
+const LANG_KEY = 'admin_lang';
+
+const T = {
+  en: {
+    // Login
+    appName: 'Nordic Uppsala Taxi',
+    adminDashboard: 'Admin Dashboard',
+    signIn: 'Sign In',
+    username: 'Username',
+    password: 'Password',
+    invalidCredentials: 'Invalid username or password.',
+    signingIn: 'Signing in...',
+    backToMain: '← Back to main site',
+    // Nav
+    adminTag: 'Admin',
+    loading: 'Loading...',
+    refresh: '↻ Refresh',
+    backToSite: 'Back to site',
+    signOut: 'Sign Out',
+    // Page
+    bookingMgmt: 'Booking Management',
+    bookingMgmtSub: 'View and manage all taxi bookings.',
+    // Stats
+    total: 'Total',
+    pending: 'Pending',
+    confirmed: 'Confirmed',
+    completed: 'Completed',
+    cancelled: 'Cancelled',
+    bookingsLabel: 'bookings',
+    // Filters
+    searchPlaceholder: 'Search by name, phone, ID...',
+    all: 'All',
+    newestFirst: 'Newest first',
+    nameAZ: 'Name A–Z',
+    // Table
+    id: 'ID',
+    passenger: 'Passenger',
+    route: 'Route',
+    departure: 'Departure',
+    vehicle: 'Vehicle',
+    status: 'Status',
+    action: 'Action',
+    noBookings: 'No bookings found',
+    showing: 'Showing',
+    of: 'of',
+    // Drawer
+    bookingDetails: 'Booking Details',
+    passengersLabel: 'passengers',
+    childSeat: 'Child seat',
+    pet: 'Pet',
+    updateStatus: 'Update Status',
+    deleteBooking: 'Delete Booking',
+    confirmDelete: 'Delete this booking?',
+    failedDelete: 'Failed to delete booking',
+    failedStatus: 'Failed to update status',
+    created: 'Created',
+  },
+  sv: {
+    // Login
+    appName: 'Nordic Uppsala Taxi',
+    adminDashboard: 'Adminpanel',
+    signIn: 'Logga in',
+    username: 'Användarnamn',
+    password: 'Lösenord',
+    invalidCredentials: 'Felaktigt användarnamn eller lösenord.',
+    signingIn: 'Loggar in...',
+    backToMain: '← Tillbaka till huvudsidan',
+    // Nav
+    adminTag: 'Admin',
+    loading: 'Laddar...',
+    refresh: '↻ Uppdatera',
+    backToSite: 'Tillbaka till sidan',
+    signOut: 'Logga ut',
+    // Page
+    bookingMgmt: 'Bokningshantering',
+    bookingMgmtSub: 'Visa och hantera alla taxibokningar.',
+    // Stats
+    total: 'Totalt',
+    pending: 'Väntar',
+    confirmed: 'Bekräftad',
+    completed: 'Slutförd',
+    cancelled: 'Avbokad',
+    bookingsLabel: 'bokningar',
+    // Filters
+    searchPlaceholder: 'Sök efter namn, telefon, ID...',
+    all: 'Alla',
+    newestFirst: 'Senaste först',
+    nameAZ: 'Namn A–Ö',
+    // Table
+    id: 'ID',
+    passenger: 'Passagerare',
+    route: 'Rutt',
+    departure: 'Avgång',
+    vehicle: 'Fordon',
+    status: 'Status',
+    action: 'Åtgärd',
+    noBookings: 'Inga bokningar hittades',
+    showing: 'Visar',
+    of: 'av',
+    // Drawer
+    bookingDetails: 'Bokningsdetaljer',
+    passengersLabel: 'passagerare',
+    childSeat: 'Barnstol',
+    pet: 'Husdjur',
+    updateStatus: 'Uppdatera status',
+    deleteBooking: 'Ta bort bokning',
+    confirmDelete: 'Ta bort denna bokning?',
+    failedDelete: 'Det gick inte att ta bort bokningen',
+    failedStatus: 'Det gick inte att uppdatera status',
+    created: 'Skapad',
+  },
+} as const;
 
 const statusColors: Record<Booking['status'], string> = {
   pending:   'bg-amber-100 text-amber-800 border border-amber-200',
@@ -12,16 +126,27 @@ const statusColors: Record<Booking['status'], string> = {
   cancelled: 'bg-red-100 text-red-800 border border-red-200',
 };
 
-const statusLabels: Record<Booking['status'], string> = {
-  pending:   'Pending',
-  confirmed: 'Confirmed',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
-};
-
 const USABLE_STATUSES = ['pending', 'confirmed', 'completed', 'cancelled'] as const;
 
 export default function AdminPage() {
+  const [lang, setLang] = useState<Lang>(() => {
+    const saved = (typeof window !== 'undefined' && localStorage.getItem(LANG_KEY)) as Lang | null;
+    return saved === 'en' || saved === 'sv' ? saved : 'sv';
+  });
+  const tr = T[lang];
+
+  const statusLabels: Record<Booking['status'], string> = {
+    pending:   tr.pending,
+    confirmed: tr.confirmed,
+    completed: tr.completed,
+    cancelled: tr.cancelled,
+  };
+
+  const setLangPersist = (l: Lang) => {
+    setLang(l);
+    try { localStorage.setItem(LANG_KEY, l); } catch { /* ignore */ }
+  };
+
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
@@ -62,7 +187,7 @@ export default function AdminPage() {
       await api.login(username, password);
       setIsLoggedIn(true);
     } catch {
-      setLoginError('Нэвтрэх нэр эсвэл нууц үг буруу.');
+      setLoginError(tr.invalidCredentials);
     } finally {
       setLoginLoading(false);
     }
@@ -79,19 +204,19 @@ export default function AdminPage() {
       await api.updateStatus(id, status);
       setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
       if (selectedBooking?.id === id) setSelectedBooking(prev => prev ? { ...prev, status } : null);
-    } catch (err) {
-      alert('Статус өөрчлөхөд алдаа гарлаа');
+    } catch {
+      alert(tr.failedStatus);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this booking?')) return;
+    if (!confirm(tr.confirmDelete)) return;
     try {
       await api.deleteBooking(id);
       setBookings(prev => prev.filter(b => b.id !== id));
       if (selectedBooking?.id === id) setSelectedBooking(null);
     } catch {
-      alert('Устгахад алдаа гарлаа');
+      alert(tr.failedDelete);
     }
   };
 
@@ -119,26 +244,49 @@ export default function AdminPage() {
     cancelled: bookings.filter(b => b.status === 'cancelled').length,
   };
 
+  // ─── Language toggle component ───────────────────────────────────────────────
+  const LangToggle = ({ dark = false }: { dark?: boolean }) => (
+    <div className={`inline-flex rounded-xl overflow-hidden border ${dark ? 'border-white/20' : 'border-gray-200'}`}>
+      {(['sv', 'en'] as const).map(l => (
+        <button
+          key={l}
+          onClick={() => setLangPersist(l)}
+          className={`px-2.5 py-1 text-xs font-semibold uppercase transition-all ${
+            lang === l
+              ? (dark ? 'bg-[#efbf04] text-black' : 'bg-[#efbf04] text-black')
+              : (dark ? 'bg-white/5 text-gray-300 hover:bg-white/10' : 'bg-white text-gray-500 hover:bg-gray-50')
+          }`}
+        >
+          {l}
+        </button>
+      ))}
+    </div>
+  );
+
   // ─── Login ───────────────────────────────────────────────────────────────────
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center p-4">
         <div className="w-full max-w-md">
+          <div className="flex justify-end mb-4">
+            <LangToggle dark />
+          </div>
+
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#efbf04] mb-4 shadow-lg">
               <svg className="w-9 h-9 text-black" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5S16.67 13 17.5 13s1.5.67 1.5 1.5S18.33 16 17.5 16zM5 11l1.5-4.5h11L19 11H5z"/>
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Nordic Uppsala Taxi</h1>
-            <p className="text-gray-400 text-sm mt-1">Admin Dashboard</p>
+            <h1 className="text-2xl font-bold text-white tracking-tight">{tr.appName}</h1>
+            <p className="text-gray-400 text-sm mt-1">{tr.adminDashboard}</p>
           </div>
 
           <div className="bg-white/5 backdrop-blur border border-white/10 rounded-2xl p-8 shadow-2xl">
-            <h2 className="text-lg font-semibold text-white mb-6">Sign In</h2>
+            <h2 className="text-lg font-semibold text-white mb-6">{tr.signIn}</h2>
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">Username</label>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">{tr.username}</label>
                 <input
                   type="text"
                   value={username}
@@ -148,7 +296,7 @@ export default function AdminPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">Password</label>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">{tr.password}</label>
                 <input
                   type="password"
                   value={password}
@@ -167,14 +315,14 @@ export default function AdminPage() {
                 disabled={loginLoading}
                 className="w-full bg-[#efbf04] hover:bg-[#d9ab03] disabled:opacity-60 text-black font-bold py-3 rounded-xl transition-all active:scale-95 shadow-lg shadow-[#efbf04]/20 mt-2"
               >
-                {loginLoading ? 'Нэвтэрч байна...' : 'Sign In'}
+                {loginLoading ? tr.signingIn : tr.signIn}
               </button>
             </form>
           </div>
 
           <div className="text-center mt-6">
             <Link to="/" className="text-gray-500 hover:text-gray-300 text-sm transition-colors">
-              ← Back to main site
+              {tr.backToMain}
             </Link>
           </div>
         </div>
@@ -197,20 +345,21 @@ export default function AdminPage() {
                 </svg>
               </div>
               <div>
-                <p className="font-bold text-gray-900 text-sm leading-none">Nordic Uppsala Taxi</p>
-                <p className="text-xs text-gray-400 leading-none mt-0.5">Admin</p>
+                <p className="font-bold text-gray-900 text-sm leading-none">{tr.appName}</p>
+                <p className="text-xs text-gray-400 leading-none mt-0.5">{tr.adminTag}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <LangToggle />
               <button
                 onClick={fetchBookings}
                 disabled={loading}
                 className="text-sm text-gray-500 hover:text-gray-800 transition-colors hidden sm:block disabled:opacity-50"
               >
-                {loading ? 'Уншиж байна...' : '↻ Refresh'}
+                {loading ? tr.loading : tr.refresh}
               </button>
               <Link to="/" className="text-sm text-gray-500 hover:text-gray-800 transition-colors hidden sm:block">
-                Back to site
+                {tr.backToSite}
               </Link>
               <button
                 onClick={handleLogout}
@@ -219,7 +368,7 @@ export default function AdminPage() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                 </svg>
-                <span className="hidden sm:inline">Sign Out</span>
+                <span className="hidden sm:inline">{tr.signOut}</span>
               </button>
             </div>
           </div>
@@ -229,31 +378,31 @@ export default function AdminPage() {
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
 
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Booking Management</h1>
-          <p className="text-gray-500 text-sm mt-1">View and manage all taxi bookings.</p>
+          <h1 className="text-2xl font-bold text-gray-900">{tr.bookingMgmt}</h1>
+          <p className="text-gray-500 text-sm mt-1">{tr.bookingMgmtSub}</p>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Total</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{tr.total}</p>
             <p className="text-3xl font-bold text-gray-900 mt-1">{stats.total}</p>
-            <p className="text-xs text-gray-400 mt-1">bookings</p>
+            <p className="text-xs text-gray-400 mt-1">{tr.bookingsLabel}</p>
           </div>
           <div className="bg-white rounded-2xl p-4 border border-amber-100 shadow-sm">
-            <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Pending</p>
+            <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide">{tr.pending}</p>
             <p className="text-3xl font-bold text-amber-600 mt-1">{stats.pending}</p>
-            <p className="text-xs text-gray-400 mt-1">bookings</p>
+            <p className="text-xs text-gray-400 mt-1">{tr.bookingsLabel}</p>
           </div>
           <div className="bg-white rounded-2xl p-4 border border-green-100 shadow-sm">
-            <p className="text-xs font-semibold text-green-600 uppercase tracking-wide">Completed</p>
+            <p className="text-xs font-semibold text-green-600 uppercase tracking-wide">{tr.completed}</p>
             <p className="text-3xl font-bold text-green-600 mt-1">{stats.completed}</p>
-            <p className="text-xs text-gray-400 mt-1">bookings</p>
+            <p className="text-xs text-gray-400 mt-1">{tr.bookingsLabel}</p>
           </div>
           <div className="bg-white rounded-2xl p-4 border border-red-100 shadow-sm">
-            <p className="text-xs font-semibold text-red-500 uppercase tracking-wide">Cancelled</p>
+            <p className="text-xs font-semibold text-red-500 uppercase tracking-wide">{tr.cancelled}</p>
             <p className="text-3xl font-bold text-red-500 mt-1">{stats.cancelled}</p>
-            <p className="text-xs text-gray-400 mt-1">bookings</p>
+            <p className="text-xs text-gray-400 mt-1">{tr.bookingsLabel}</p>
           </div>
         </div>
 
@@ -269,7 +418,7 @@ export default function AdminPage() {
                 type="text"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Search by name, phone, ID..."
+                placeholder={tr.searchPlaceholder}
                 className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-[#efbf04] focus:ring-1 focus:ring-[#efbf04] transition-all"
               />
             </div>
@@ -283,7 +432,7 @@ export default function AdminPage() {
                     statusFilter === s ? 'bg-[#efbf04] text-black shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                   }`}
                 >
-                  {s === 'all' ? 'All' : statusLabels[s]}
+                  {s === 'all' ? tr.all : statusLabels[s]}
                 </button>
               ))}
             </div>
@@ -293,14 +442,14 @@ export default function AdminPage() {
               onChange={e => setSortBy(e.target.value as typeof sortBy)}
               className="text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-[#efbf04] bg-white text-gray-700"
             >
-              <option value="createdAt">Newest first</option>
-              <option value="name">Name A–Z</option>
+              <option value="createdAt">{tr.newestFirst}</option>
+              <option value="name">{tr.nameAZ}</option>
             </select>
           </div>
 
           {/* Loading */}
           {loading && (
-            <div className="text-center py-12 text-gray-400 text-sm">Уншиж байна...</div>
+            <div className="text-center py-12 text-gray-400 text-sm">{tr.loading}</div>
           )}
 
           {/* Desktop Table */}
@@ -309,19 +458,19 @@ export default function AdminPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50/50">
-                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">ID</th>
-                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Passenger</th>
-                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Route</th>
-                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Departure</th>
-                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Vehicle</th>
-                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Status</th>
-                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Action</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">{tr.id}</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">{tr.passenger}</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">{tr.route}</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">{tr.departure}</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">{tr.vehicle}</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">{tr.status}</th>
+                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">{tr.action}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-16 text-gray-400 text-sm">No bookings found</td>
+                      <td colSpan={7} className="text-center py-16 text-gray-400 text-sm">{tr.noBookings}</td>
                     </tr>
                   ) : (
                     filtered.map(booking => (
@@ -387,7 +536,7 @@ export default function AdminPage() {
           {!loading && (
             <div className="md:hidden divide-y divide-gray-100">
               {filtered.length === 0 ? (
-                <p className="text-center py-12 text-gray-400 text-sm">No bookings found</p>
+                <p className="text-center py-12 text-gray-400 text-sm">{tr.noBookings}</p>
               ) : (
                 filtered.map(booking => (
                   <div key={booking.id} className="p-4" onClick={() => setSelectedBooking(booking)}>
@@ -431,7 +580,7 @@ export default function AdminPage() {
           )}
 
           <div className="px-5 py-3.5 border-t border-gray-100 bg-gray-50/50 text-xs text-gray-400">
-            Showing {filtered.length} of {bookings.length} bookings
+            {tr.showing} {filtered.length} {tr.of} {bookings.length} {tr.bookingsLabel}
           </div>
         </div>
       </div>
@@ -443,7 +592,7 @@ export default function AdminPage() {
           <div className="relative bg-white w-full max-w-md h-full overflow-y-auto shadow-2xl">
             <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between z-10">
               <div>
-                <p className="font-bold text-gray-900">Booking Details</p>
+                <p className="font-bold text-gray-900">{tr.bookingDetails}</p>
                 <p className="text-xs text-gray-400 font-mono">{selectedBooking.id}</p>
               </div>
               <button onClick={() => setSelectedBooking(null)} className="w-8 h-8 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-all">
@@ -461,7 +610,7 @@ export default function AdminPage() {
               </div>
 
               <div className="bg-gray-50 rounded-2xl p-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Passenger</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{tr.passenger}</p>
                 <p className="text-base font-bold text-gray-900">{selectedBooking.name}</p>
                 <p className="text-sm text-gray-500 mt-1">{selectedBooking.phone}</p>
                 {selectedBooking.email && (
@@ -470,7 +619,7 @@ export default function AdminPage() {
               </div>
 
               <div className="bg-gray-50 rounded-2xl p-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Route</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{tr.route}</p>
                 <div className="space-y-2">
                   <div className="flex items-center gap-3">
                     <div className="w-2 h-2 rounded-full bg-[#efbf04] flex-shrink-0" />
@@ -485,12 +634,12 @@ export default function AdminPage() {
               </div>
 
               <div className="bg-gray-50 rounded-2xl p-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Vehicle</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{tr.vehicle}</p>
                 <p className="text-sm font-semibold text-gray-900 mb-2">{selectedBooking.carSize}</p>
                 <div className="flex flex-wrap gap-2">
-                  <span className="bg-white border border-gray-200 text-gray-600 text-xs px-3 py-1 rounded-lg">👤 {selectedBooking.passengers} passengers</span>
-                  {selectedBooking.hasChild && <span className="bg-blue-50 border border-blue-200 text-blue-700 text-xs px-3 py-1 rounded-lg">👶 Child seat</span>}
-                  {selectedBooking.hasPet && <span className="bg-orange-50 border border-orange-200 text-orange-700 text-xs px-3 py-1 rounded-lg">🐾 Pet</span>}
+                  <span className="bg-white border border-gray-200 text-gray-600 text-xs px-3 py-1 rounded-lg">👤 {selectedBooking.passengers} {tr.passengersLabel}</span>
+                  {selectedBooking.hasChild && <span className="bg-blue-50 border border-blue-200 text-blue-700 text-xs px-3 py-1 rounded-lg">👶 {tr.childSeat}</span>}
+                  {selectedBooking.hasPet && <span className="bg-orange-50 border border-orange-200 text-orange-700 text-xs px-3 py-1 rounded-lg">🐾 {tr.pet}</span>}
                 </div>
                 {selectedBooking.price > 0 && (
                   <p className="text-sm font-bold text-gray-900 mt-3">{selectedBooking.price} SEK</p>
@@ -498,7 +647,7 @@ export default function AdminPage() {
               </div>
 
               <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Update Status</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{tr.updateStatus}</p>
                 <div className="grid grid-cols-2 gap-2">
                   {USABLE_STATUSES.map(s => (
                     <button
@@ -515,10 +664,10 @@ export default function AdminPage() {
               </div>
 
               <button onClick={() => handleDelete(selectedBooking.id)} className="w-full py-3 rounded-xl bg-red-50 text-red-600 font-semibold text-sm hover:bg-red-100 transition-all">
-                Delete Booking
+                {tr.deleteBooking}
               </button>
 
-              <p className="text-xs text-gray-400 text-center">Created: {selectedBooking.createdAt}</p>
+              <p className="text-xs text-gray-400 text-center">{tr.created}: {selectedBooking.createdAt}</p>
             </div>
           </div>
         </div>
