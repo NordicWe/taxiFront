@@ -1,7 +1,9 @@
 import type { Booking } from './bookings';
 
-// Production-д Vercel env (VITE_API_URL), локал dev-д localhost
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// Production-д Vercel env (VITE_API_URL), локал dev-д localhost.
+// Төгсгөлийн "/" тэмдэгийг устгана — давхар slash (//api/...) үүсэхээс сэргийлнэ.
+const RAW_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const BASE_URL = RAW_BASE_URL.replace(/\/+$/, '');
 const TOKEN_KEY = 'admin_token';
 
 
