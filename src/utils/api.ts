@@ -1,7 +1,9 @@
 import type { Booking } from './bookings';
 
-const BASE_URL = 'http://localhost:3001';
+// Production-д Vercel env (VITE_API_URL), локал dev-д localhost
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const TOKEN_KEY = 'admin_token';
+
 
 function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
