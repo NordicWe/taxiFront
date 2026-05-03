@@ -71,6 +71,9 @@ export default function HomePage() {
   const [selectedDay, setSelectedDay] = useState('today');
   const [selectedTime, setSelectedTime] = useState('18:00');
   const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [nameError, setNameError] = useState(false);
+  const [emailError, setEmailError] = useState(false);
+  const [phoneError, setPhoneError] = useState(false);
 
   const swapRoute = () => {
     setFrom(to);
@@ -84,17 +87,43 @@ export default function HomePage() {
   };
 
   const handleBookNow = async () => {
-    if (!name.trim() || !email.trim() || !phone.trim()) {
-      alert(lang === 'en'
-        ? 'Please fill in your name, email and phone number.'
-        : 'Vänligen fyll i ditt namn, e-post och telefonnummer.');
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+    const trimmedPhone = phone.trim();
+
+    setNameError(false);
+    setEmailError(false);
+    setPhoneError(false);
+
+    if (!trimmedName || !trimmedEmail || !trimmedPhone) {
+      setNameError(!trimmedName);
+      setEmailError(!trimmedEmail);
+      setPhoneError(!trimmedPhone);
+      alert(tr.fillAllFields);
       return;
     }
+
+    // Email validation
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRe.test(trimmedEmail)) {
+      setEmailError(true);
+      alert(tr.invalidEmail);
+      return;
+    }
+
+    // Phone validation: only digits, spaces, +, -, parens. Min 6 digits.
+    const phoneDigits = trimmedPhone.replace(/[^\d]/g, '');
+    if (!/^[\d\s+()-]+$/.test(trimmedPhone) || phoneDigits.length < 6) {
+      setPhoneError(true);
+      alert(tr.invalidPhone);
+      return;
+    }
+
     try {
       await addBooking({
-        name: name.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
+        name: trimmedName,
+        email: trimmedEmail,
+        phone: trimmedPhone,
         from,
         to,
         passengers,
@@ -303,30 +332,71 @@ export default function HomePage() {
 
           {/* Name, Email & Phone */}
           <div className="space-y-2.5 mb-5">
-            <div className="border border-gray-200 focus-within:border-[#efbf04] focus-within:ring-1 focus-within:ring-[#efbf04]/30 rounded-xl h-[42px] px-4 flex items-center transition-all bg-gray-50/50">
+            {/* Name */}
+            <div className={`border rounded-xl h-[44px] px-3.5 flex items-center gap-2.5 transition-all bg-gray-50/50 ${
+              nameError
+                ? 'border-red-400 ring-1 ring-red-200'
+                : 'border-gray-200 focus-within:border-[#efbf04] focus-within:ring-1 focus-within:ring-[#efbf04]/30'
+            }`}>
+              <svg className={`w-4 h-4 flex-shrink-0 ${nameError ? 'text-red-400' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
               <input
                 type="text"
+                name="name"
+                autoComplete="name"
                 placeholder={tr.fullName}
                 value={name}
-                onChange={e => setName(e.target.value)}
+                onChange={e => { setName(e.target.value); if (nameError) setNameError(false); }}
+                maxLength={80}
                 className="w-full font-medium text-sm text-gray-800 placeholder:text-gray-400 outline-none bg-transparent"
               />
             </div>
-            <div className="border border-gray-200 focus-within:border-[#efbf04] focus-within:ring-1 focus-within:ring-[#efbf04]/30 rounded-xl h-[42px] px-4 flex items-center transition-all bg-gray-50/50">
+
+            {/* Email */}
+            <div className={`border rounded-xl h-[44px] px-3.5 flex items-center gap-2.5 transition-all bg-gray-50/50 ${
+              emailError
+                ? 'border-red-400 ring-1 ring-red-200'
+                : 'border-gray-200 focus-within:border-[#efbf04] focus-within:ring-1 focus-within:ring-[#efbf04]/30'
+            }`}>
+              <svg className={`w-4 h-4 flex-shrink-0 ${emailError ? 'text-red-400' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
               <input
                 type="email"
-                placeholder="Email"
+                name="email"
+                autoComplete="email"
+                inputMode="email"
+                placeholder={tr.email}
                 value={email}
-                onChange={e => setEmail(e.target.value)}
+                onChange={e => { setEmail(e.target.value); if (emailError) setEmailError(false); }}
+                maxLength={120}
                 className="w-full font-medium text-sm text-gray-800 placeholder:text-gray-400 outline-none bg-transparent"
               />
             </div>
-            <div className="border border-gray-200 focus-within:border-[#efbf04] focus-within:ring-1 focus-within:ring-[#efbf04]/30 rounded-xl h-[42px] px-4 flex items-center transition-all bg-gray-50/50">
+
+            {/* Phone */}
+            <div className={`border rounded-xl h-[44px] px-3.5 flex items-center gap-2.5 transition-all bg-gray-50/50 ${
+              phoneError
+                ? 'border-red-400 ring-1 ring-red-200'
+                : 'border-gray-200 focus-within:border-[#efbf04] focus-within:ring-1 focus-within:ring-[#efbf04]/30'
+            }`}>
+              <svg className={`w-4 h-4 flex-shrink-0 ${phoneError ? 'text-red-400' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+              </svg>
               <input
                 type="tel"
+                name="phone"
+                autoComplete="tel"
+                inputMode="tel"
                 placeholder={tr.mobileNumber}
                 value={phone}
-                onChange={e => setPhone(e.target.value)}
+                onChange={e => {
+                  const cleaned = e.target.value.replace(/[^\d\s+()-]/g, '');
+                  setPhone(cleaned);
+                  if (phoneError) setPhoneError(false);
+                }}
+                maxLength={20}
                 className="w-full font-medium text-sm text-gray-800 placeholder:text-gray-400 outline-none bg-transparent"
               />
             </div>

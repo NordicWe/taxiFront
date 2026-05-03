@@ -20,7 +20,11 @@ export const t = {
     // Booking form
     bookingDetails: 'Booking Details',
     fullName: 'Full Name',
+    email: 'Email',
     mobileNumber: 'Mobile Number',
+    invalidEmail: 'Please enter a valid email address.',
+    invalidPhone: 'Please enter a valid phone number.',
+    fillAllFields: 'Please fill in your name, email and phone number.',
     vehicle: 'Vehicle',
     childSeat: 'Child Seat',
     petFriendly: 'Pet Friendly',
@@ -159,7 +163,11 @@ export const t = {
     // Booking form
     bookingDetails: 'Bokningsdetaljer',
     fullName: 'Fullständigt namn',
+    email: 'E-post',
     mobileNumber: 'Mobilnummer',
+    invalidEmail: 'Vänligen ange en giltig e-postadress.',
+    invalidPhone: 'Vänligen ange ett giltigt telefonnummer.',
+    fillAllFields: 'Vänligen fyll i ditt namn, e-post och telefonnummer.',
     vehicle: 'Fordon',
     childSeat: 'Barnstol',
     petFriendly: 'Husdjursvänlig',
