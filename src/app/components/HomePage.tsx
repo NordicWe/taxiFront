@@ -74,6 +74,7 @@ export default function HomePage() {
   const [nameError, setNameError] = useState(false);
   const [emailError, setEmailError] = useState(false);
   const [phoneError, setPhoneError] = useState(false);
+  const [bookingError, setBookingError] = useState('');
 
   const swapRoute = () => {
     setFrom(to);
@@ -94,12 +95,13 @@ export default function HomePage() {
     setNameError(false);
     setEmailError(false);
     setPhoneError(false);
+    setBookingError('');
 
     if (!trimmedName || !trimmedEmail || !trimmedPhone) {
       setNameError(!trimmedName);
       setEmailError(!trimmedEmail);
       setPhoneError(!trimmedPhone);
-      alert(tr.fillAllFields);
+      setBookingError(tr.fillAllFields);
       return;
     }
 
@@ -107,7 +109,7 @@ export default function HomePage() {
     const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRe.test(trimmedEmail)) {
       setEmailError(true);
-      alert(tr.invalidEmail);
+      setBookingError(tr.invalidEmail);
       return;
     }
 
@@ -115,7 +117,7 @@ export default function HomePage() {
     const phoneDigits = trimmedPhone.replace(/[^\d]/g, '');
     if (!/^[\d\s+()-]+$/.test(trimmedPhone) || phoneDigits.length < 6) {
       setPhoneError(true);
-      alert(tr.invalidPhone);
+      setBookingError(tr.invalidPhone);
       return;
     }
 
@@ -136,12 +138,13 @@ export default function HomePage() {
         price: passengers >= 5 ? 1095 : 595,
       });
       setBookingSuccess(true);
+      setBookingError('');
       setName('');
       setEmail('');
       setPhone('');
       setTimeout(() => setBookingSuccess(false), 4000);
     } catch {
-      alert(lang === 'en' ? 'Booking failed. Please try again.' : 'Bokning misslyckades. Försök igen.');
+      setBookingError(lang === 'en' ? 'Booking failed. Please try again.' : 'Bokning misslyckades. Försök igen.');
     }
   };
 
@@ -318,12 +321,36 @@ export default function HomePage() {
           <AnimatePresence>
             {bookingSuccess && (
               <motion.div
+                key="success"
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 className="mb-4 bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-green-700 text-sm font-medium flex items-center gap-2"
               >
                 <span>✅</span> {tr.bookingSuccess}
+              </motion.div>
+            )}
+            {bookingError && (
+              <motion.div
+                key="error"
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-700 text-sm font-medium flex items-start gap-2"
+              >
+                <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4a2 2 0 00-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
+                </svg>
+                <span className="flex-1">{bookingError}</span>
+                <button
+                  onClick={() => setBookingError('')}
+                  className="text-red-400 hover:text-red-600 transition-colors flex-shrink-0"
+                  aria-label="Close"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </motion.div>
             )}
           </AnimatePresence>
