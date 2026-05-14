@@ -181,9 +181,6 @@ export default function HomePage() {
             <Link to="/price" className="font-bold text-sm text-white hover:text-[#efbf04] transition-colors tracking-wide">
               {tr.price}
             </Link>
-            <Link to="/admin" className="font-bold text-sm text-white hover:text-[#efbf04] transition-colors tracking-wide">
-              {tr.admin}
-            </Link>
             <button className="bg-[#efbf04] h-[38px] rounded-full px-6 lg:px-7 font-bold text-sm text-white hover:bg-[#d9ab03] transition-all shadow-lg active:scale-95 tracking-wide">
               {tr.bookATaxi.toUpperCase()}
             </button>
@@ -226,7 +223,6 @@ export default function HomePage() {
               {[
                 { to: '/about', label: tr.aboutUs },
                 { to: '/price', label: tr.price },
-                { to: '/admin', label: tr.admin },
               ].map(link => (
                 <Link
                   key={link.to}

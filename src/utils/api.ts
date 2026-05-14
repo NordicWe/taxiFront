@@ -80,6 +80,15 @@ export const api = {
     return data.token;
   },
 
+  async changeAdminCredentials(payload: {
+    oldUsername: string;
+    oldPassword: string;
+    newUsername: string;
+    newPassword: string;
+  }): Promise<void> {
+    await request('POST', '/api/admin/change-credentials', payload);
+  },
+
   // ── Bookings ─────────────────────────────────────────────────────────────
   async getBookings(): Promise<Booking[]> {
     const data = await request<{ success: boolean; data: Record<string, unknown>[] }>('GET', '/api/bookings');

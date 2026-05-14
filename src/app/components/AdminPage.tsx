@@ -62,6 +62,22 @@ const T = {
     failedDelete: 'Failed to delete booking',
     failedStatus: 'Failed to update status',
     created: 'Created',
+    // Change credentials
+    changeCreds: 'Change Credentials',
+    changeCredsSub: 'Update the admin username and password. You will need to log in again afterwards.',
+    oldUsername: 'Current Username',
+    oldPassword: 'Current Password',
+    newUsername: 'New Username',
+    newPassword: 'New Password',
+    confirmNewPassword: 'Confirm New Password',
+    save: 'Save',
+    cancel: 'Cancel',
+    saving: 'Saving...',
+    credsUpdated: 'Credentials updated. Please log in again.',
+    passwordsDontMatch: 'New passwords do not match.',
+    passwordTooShort: 'Password must be at least 6 characters.',
+    fillAllCredFields: 'Please fill in all fields.',
+    changeCredsFailed: 'Failed to update credentials.',
   },
   sv: {
     // Login
@@ -116,6 +132,22 @@ const T = {
     failedDelete: 'Det gick inte att ta bort bokningen',
     failedStatus: 'Det gick inte att uppdatera status',
     created: 'Skapad',
+    // Change credentials
+    changeCreds: 'Byt inloggningsuppgifter',
+    changeCredsSub: 'Uppdatera adminanvändarnamn och lösenord. Du måste logga in igen efteråt.',
+    oldUsername: 'Nuvarande användarnamn',
+    oldPassword: 'Nuvarande lösenord',
+    newUsername: 'Nytt användarnamn',
+    newPassword: 'Nytt lösenord',
+    confirmNewPassword: 'Bekräfta nytt lösenord',
+    save: 'Spara',
+    cancel: 'Avbryt',
+    saving: 'Sparar...',
+    credsUpdated: 'Uppgifterna har uppdaterats. Logga in igen.',
+    passwordsDontMatch: 'De nya lösenorden matchar inte.',
+    passwordTooShort: 'Lösenordet måste vara minst 6 tecken.',
+    fillAllCredFields: 'Vänligen fyll i alla fält.',
+    changeCredsFailed: 'Det gick inte att uppdatera uppgifterna.',
   },
 } as const;
 
@@ -159,6 +191,64 @@ export default function AdminPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [sortBy, setSortBy] = useState<'createdAt' | 'name'>('createdAt');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+
+  // Change credentials modal
+  const [showCredsModal, setShowCredsModal] = useState(false);
+  const [credOldUser, setCredOldUser] = useState('');
+  const [credOldPass, setCredOldPass] = useState('');
+  const [credNewUser, setCredNewUser] = useState('');
+  const [credNewPass, setCredNewPass] = useState('');
+  const [credNewPass2, setCredNewPass2] = useState('');
+  const [credError, setCredError] = useState('');
+  const [credSaving, setCredSaving] = useState(false);
+
+  const resetCredsForm = () => {
+    setCredOldUser('');
+    setCredOldPass('');
+    setCredNewUser('');
+    setCredNewPass('');
+    setCredNewPass2('');
+    setCredError('');
+    setCredSaving(false);
+  };
+
+  const handleChangeCreds = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCredError('');
+
+    if (!credOldUser.trim() || !credOldPass || !credNewUser.trim() || !credNewPass || !credNewPass2) {
+      setCredError(tr.fillAllCredFields);
+      return;
+    }
+    if (credNewPass.length < 6) {
+      setCredError(tr.passwordTooShort);
+      return;
+    }
+    if (credNewPass !== credNewPass2) {
+      setCredError(tr.passwordsDontMatch);
+      return;
+    }
+
+    setCredSaving(true);
+    try {
+      await api.changeAdminCredentials({
+        oldUsername: credOldUser.trim(),
+        oldPassword: credOldPass,
+        newUsername: credNewUser.trim(),
+        newPassword: credNewPass,
+      });
+      // Force re-login with new credentials
+      alert(tr.credsUpdated);
+      clearToken();
+      setIsLoggedIn(false);
+      setShowCredsModal(false);
+      resetCredsForm();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : tr.changeCredsFailed;
+      setCredError(msg || tr.changeCredsFailed);
+      setCredSaving(false);
+    }
+  };
 
   const fetchBookings = useCallback(async () => {
     setLoading(true);
@@ -361,6 +451,15 @@ export default function AdminPage() {
               <Link to="/" className="text-sm text-gray-500 hover:text-gray-800 transition-colors hidden sm:block">
                 {tr.backToSite}
               </Link>
+              <button
+                onClick={() => { resetCredsForm(); setShowCredsModal(true); }}
+                title={tr.changeCreds}
+                className="w-9 h-9 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center transition-all"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </button>
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-4 py-2 rounded-xl transition-all"
@@ -669,6 +768,102 @@ export default function AdminPage() {
 
               <p className="text-xs text-gray-400 text-center">{tr.created}: {selectedBooking.createdAt}</p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Change Credentials Modal */}
+      {showCredsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => { if (!credSaving) { setShowCredsModal(false); resetCredsForm(); } }}
+          />
+          <div className="relative bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+            <div className="px-6 py-5 border-b border-gray-100">
+              <p className="font-bold text-gray-900 text-lg">{tr.changeCreds}</p>
+              <p className="text-xs text-gray-500 mt-1">{tr.changeCredsSub}</p>
+            </div>
+
+            <form onSubmit={handleChangeCreds} className="p-6 space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{tr.oldUsername}</label>
+                <input
+                  type="text"
+                  autoComplete="username"
+                  value={credOldUser}
+                  onChange={e => setCredOldUser(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#efbf04] focus:ring-1 focus:ring-[#efbf04]/30 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{tr.oldPassword}</label>
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={credOldPass}
+                  onChange={e => setCredOldPass(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#efbf04] focus:ring-1 focus:ring-[#efbf04]/30 transition-all"
+                />
+              </div>
+
+              <div className="border-t border-gray-100 my-2" />
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{tr.newUsername}</label>
+                <input
+                  type="text"
+                  autoComplete="off"
+                  value={credNewUser}
+                  onChange={e => setCredNewUser(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#efbf04] focus:ring-1 focus:ring-[#efbf04]/30 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{tr.newPassword}</label>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={credNewPass}
+                  onChange={e => setCredNewPass(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#efbf04] focus:ring-1 focus:ring-[#efbf04]/30 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{tr.confirmNewPassword}</label>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={credNewPass2}
+                  onChange={e => setCredNewPass2(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#efbf04] focus:ring-1 focus:ring-[#efbf04]/30 transition-all"
+                />
+              </div>
+
+              {credError && (
+                <div className="bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5 text-red-700 text-sm">
+                  {credError}
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowCredsModal(false); resetCredsForm(); }}
+                  disabled={credSaving}
+                  className="flex-1 border border-gray-200 hover:bg-gray-50 text-gray-700 font-semibold py-2.5 rounded-xl transition-all disabled:opacity-60"
+                >
+                  {tr.cancel}
+                </button>
+                <button
+                  type="submit"
+                  disabled={credSaving}
+                  className="flex-1 bg-[#efbf04] hover:bg-[#d9ab03] disabled:opacity-60 text-black font-bold py-2.5 rounded-xl transition-all"
+                >
+                  {credSaving ? tr.saving : tr.save}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

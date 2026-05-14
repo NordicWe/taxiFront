@@ -39,7 +39,6 @@ export default function PricePage() {
               <Link to="/about" className="font-bold text-sm text-white hover:text-[#efbf04] transition-colors tracking-wide">{tr.aboutUs}</Link>
               <Link to="/price" className="font-bold text-sm text-[#efbf04] tracking-wide border-b-2 border-[#efbf04] pb-0.5">{tr.price}</Link>
               <Link to="/" className="font-bold text-sm text-white hover:text-[#efbf04] transition-colors tracking-wide">{tr.bookATaxi}</Link>
-              <Link to="/admin" className="font-bold text-sm text-white hover:text-[#efbf04] transition-colors tracking-wide">{tr.admin}</Link>
               <button
                 onClick={toggleLang}
                 className="relative h-8 w-8 rounded-full overflow-hidden border-2 border-white/30 hover:border-[#efbf04] transition-all"
@@ -71,7 +70,6 @@ export default function PricePage() {
                   { to: '/about', label: tr.aboutUs },
                   { to: '/price', label: tr.price },
                   { to: '/', label: tr.bookATaxi },
-                  { to: '/admin', label: tr.admin },
                 ].map(link => (
                   <Link key={link.to} to={link.to} onClick={() => setMobileMenuOpen(false)} className="block py-2.5 font-semibold text-white text-base border-b border-white/10 hover:text-[#efbf04] transition-colors last:border-0">
                     {link.label}
