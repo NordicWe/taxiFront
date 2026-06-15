@@ -59,8 +59,8 @@ export default function HomePage() {
   const [showTimeModal, setShowTimeModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedCarSize, setSelectedCarSize] = useState(0);
-  const [from, setFrom] = useState('Uppsala');
-  const [to, setTo] = useState('Arlanda Airport');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
