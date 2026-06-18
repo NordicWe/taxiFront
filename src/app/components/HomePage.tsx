@@ -105,6 +105,12 @@ export default function HomePage() {
       return;
     }
 
+    // Route (from / to) required — backend rejects empty values
+    if (!from.trim() || !to.trim()) {
+      setBookingError(tr.fillRoute);
+      return;
+    }
+
     // Email validation
     const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRe.test(trimmedEmail)) {

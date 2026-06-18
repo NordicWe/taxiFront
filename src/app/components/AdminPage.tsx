@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router';
 import { type Booking } from '../../utils/bookings';
 import { api, clearToken } from '../../utils/api';
@@ -7,6 +7,8 @@ type StatusFilter = 'all' | Booking['status'];
 type Lang = 'en' | 'sv';
 
 const LANG_KEY = 'admin_lang';
+const NOTIF_KEY = 'admin_notif';
+const POLL_MS = 5000; // дугаар background шалгалт — шинэ booking ~5 сек дотор илэрнэ
 
 const T = {
   en: {
@@ -25,6 +27,11 @@ const T = {
     refresh: '↻ Refresh',
     backToSite: 'Back to site',
     signOut: 'Sign Out',
+    // Notifications
+    soundOn: 'Sound on',
+    soundOff: 'Sound off',
+    newBooking: 'New booking',
+    newBookings: 'new bookings',
     // Page
     bookingMgmt: 'Booking Management',
     bookingMgmtSub: 'View and manage all taxi bookings.',
@@ -95,6 +102,11 @@ const T = {
     refresh: '↻ Uppdatera',
     backToSite: 'Tillbaka till sidan',
     signOut: 'Logga ut',
+    // Notifications
+    soundOn: 'Ljud på',
+    soundOff: 'Ljud av',
+    newBooking: 'Ny bokning',
+    newBookings: 'nya bokningar',
     // Page
     bookingMgmt: 'Bokningshantering',
     bookingMgmtSub: 'Visa och hantera alla taxibokningar.',
@@ -192,6 +204,64 @@ export default function AdminPage() {
   const [sortBy, setSortBy] = useState<'createdAt' | 'name'>('createdAt');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
+  // Notifications
+  const [notifEnabled, setNotifEnabled] = useState<boolean>(() => {
+    const saved = typeof window !== 'undefined' && localStorage.getItem(NOTIF_KEY);
+    return saved !== 'off'; // on by default
+  });
+  const [newCount, setNewCount] = useState(0);
+  const [toast, setToast] = useState<{ count: number; name: string } | null>(null);
+
+  const knownIdsRef = useRef<Set<string>>(new Set());
+  const initializedRef = useRef(false);
+  const notifEnabledRef = useRef(notifEnabled);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
+
+  useEffect(() => { notifEnabledRef.current = notifEnabled; }, [notifEnabled]);
+  useEffect(() => () => { if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current); }, []);
+
+  // Short two-tone chime via Web Audio (no asset needed)
+  const playChime = useCallback(() => {
+    try {
+      let ctx = audioCtxRef.current;
+      if (!ctx) {
+        const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (!AC) return;
+        ctx = new AC();
+        audioCtxRef.current = ctx;
+      }
+      if (ctx.state === 'suspended') ctx.resume();
+      const now = ctx.currentTime;
+      const tone = (freq: number, start: number, dur: number) => {
+        const osc = ctx!.createOscillator();
+        const gain = ctx!.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, now + start);
+        gain.gain.linearRampToValueAtTime(0.25, now + start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + start + dur);
+        osc.connect(gain);
+        gain.connect(ctx!.destination);
+        osc.start(now + start);
+        osc.stop(now + start + dur);
+      };
+      tone(880, 0, 0.25);
+      tone(1174.66, 0.16, 0.3);
+    } catch { /* ignore */ }
+  }, []);
+
+  const clearNew = useCallback(() => setNewCount(0), []);
+
+  const toggleNotif = () => {
+    setNotifEnabled(prev => {
+      const next = !prev;
+      try { localStorage.setItem(NOTIF_KEY, next ? 'on' : 'off'); } catch { /* ignore */ }
+      if (next) playChime(); // unlock audio + preview on user gesture
+      return next;
+    });
+  };
+
   // Change credentials modal
   const [showCredsModal, setShowCredsModal] = useState(false);
   const [credOldUser, setCredOldUser] = useState('');
@@ -250,10 +320,26 @@ export default function AdminPage() {
     }
   };
 
-  const fetchBookings = useCallback(async () => {
-    setLoading(true);
+  const fetchBookings = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const data = await api.getBookings();
+
+      // Detect bookings we haven't seen yet (skip the very first load)
+      if (initializedRef.current) {
+        const fresh = data.filter(b => !knownIdsRef.current.has(b.id));
+        if (fresh.length > 0) {
+          const newest = [...fresh].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+          setNewCount(c => c + fresh.length);
+          setToast({ count: fresh.length, name: newest.name });
+          if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+          toastTimerRef.current = window.setTimeout(() => setToast(null), 8000);
+          if (notifEnabledRef.current) playChime();
+        }
+      }
+      knownIdsRef.current = new Set(data.map(b => b.id));
+      initializedRef.current = true;
+
       setBookings(data);
     } catch (err: unknown) {
       if (err instanceof Error && err.message.includes('401')) {
@@ -261,12 +347,20 @@ export default function AdminPage() {
         clearToken();
       }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  }, []);
+  }, [playChime]);
 
   useEffect(() => {
-    if (isLoggedIn) fetchBookings();
+    if (!isLoggedIn) {
+      // Reset detection so re-login doesn't fire stale notifications
+      initializedRef.current = false;
+      knownIdsRef.current = new Set();
+      return;
+    }
+    fetchBookings();
+    const interval = window.setInterval(() => fetchBookings(true), POLL_MS);
+    return () => window.clearInterval(interval);
   }, [isLoggedIn, fetchBookings]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -442,7 +536,7 @@ export default function AdminPage() {
             <div className="flex items-center gap-3">
               <LangToggle />
               <button
-                onClick={fetchBookings}
+                onClick={() => { clearNew(); fetchBookings(); }}
                 disabled={loading}
                 className="text-sm text-gray-500 hover:text-gray-800 transition-colors hidden sm:block disabled:opacity-50"
               >
@@ -451,6 +545,26 @@ export default function AdminPage() {
               <Link to="/" className="text-sm text-gray-500 hover:text-gray-800 transition-colors hidden sm:block">
                 {tr.backToSite}
               </Link>
+              <button
+                onClick={toggleNotif}
+                title={notifEnabled ? tr.soundOn : tr.soundOff}
+                className="relative w-9 h-9 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center transition-all"
+              >
+                {notifEnabled ? (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.73 21a2 2 0 01-3.46 0M18.63 13A17.89 17.89 0 0118 8M6.26 6.26A5.86 5.86 0 006 8c0 7-3 9-3 9h14M18 8a6 6 0 00-9.33-5M1 1l22 22" />
+                  </svg>
+                )}
+                {newCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow">
+                    {newCount > 99 ? '99+' : newCount}
+                  </span>
+                )}
+              </button>
               <button
                 onClick={() => { resetCredsForm(); setShowCredsModal(true); }}
                 title={tr.changeCreds}
@@ -865,6 +979,24 @@ export default function AdminPage() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* New booking toast */}
+      {toast && (
+        <div className="fixed bottom-5 right-5 z-[60]">
+          <button
+            onClick={() => { setToast(null); clearNew(); }}
+            className="flex items-center gap-3 bg-white border border-gray-200 shadow-2xl rounded-2xl pl-4 pr-5 py-3.5 hover:shadow-xl transition-all max-w-[340px] text-left"
+          >
+            <span className="flex-shrink-0 w-10 h-10 rounded-xl bg-[#efbf04]/20 flex items-center justify-center text-xl">🔔</span>
+            <span className="min-w-0">
+              <span className="block text-sm font-bold text-gray-900">
+                {toast.count > 1 ? `${toast.count} ${tr.newBookings}` : tr.newBooking}
+              </span>
+              <span className="block text-xs text-gray-500 mt-0.5 truncate">{toast.name}</span>
+            </span>
+          </button>
         </div>
       )}
     </div>
