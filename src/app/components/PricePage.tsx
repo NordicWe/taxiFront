@@ -228,7 +228,7 @@ export default function PricePage() {
               <div className="space-y-3">
                 <p className="text-sm font-semibold text-black">{tr.bookingHours}<br /><span className="font-normal text-black/70">{tr.monSun}</span></p>
                 <div className="flex items-center gap-2.5"><img alt="" className="h-5 w-5 flex-shrink-0" src={imgPhoneCall1} /><span className="text-sm font-semibold text-black">018 800 50 50</span></div>
-                <div className="flex items-start gap-2.5"><img alt="" className="h-5 w-5 flex-shrink-0 mt-0.5" src={imgGps11} /><span className="text-sm text-black leading-relaxed">MStrandbodkilen 1, 753 24 Uppsala<br />00:00 – 24/7</span></div>
+                <div className="flex items-start gap-2.5"><img alt="" className="h-5 w-5 flex-shrink-0 mt-0.5" src={imgGps11} /><span className="text-sm text-black leading-relaxed">Strandbodkilen 1, 753 24 Uppsala<br />00:00 – 24/7</span></div>
                 <div className="flex items-center gap-2.5"><img alt="" className="h-5 w-5 flex-shrink-0" src={imgEmail1} /><span className="text-sm text-black">bokning@nordicuppsalataxi.se</span></div>
               </div>
             </div>
