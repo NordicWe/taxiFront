@@ -210,18 +210,16 @@ export default function AdminPage() {
     return saved !== 'off'; // on by default
   });
   const [newCount, setNewCount] = useState(0);
-  const [toast, setToast] = useState<{ count: number; name: string } | null>(null);
+  const [toast, setToast] = useState<{ count: number; booking: Booking } | null>(null);
 
   const knownIdsRef = useRef<Set<string>>(new Set());
   const initializedRef = useRef(false);
   const notifEnabledRef = useRef(notifEnabled);
   const audioCtxRef = useRef<AudioContext | null>(null);
-  const toastTimerRef = useRef<number | null>(null);
 
   useEffect(() => { notifEnabledRef.current = notifEnabled; }, [notifEnabled]);
-  useEffect(() => () => { if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current); }, []);
 
-  // Short two-tone chime via Web Audio (no asset needed)
+  // Attention-grabbing notification jingle via Web Audio (no asset needed)
   const playChime = useCallback(() => {
     try {
       let ctx = audioCtxRef.current;
@@ -233,21 +231,28 @@ export default function AdminPage() {
       }
       if (ctx.state === 'suspended') ctx.resume();
       const now = ctx.currentTime;
-      const tone = (freq: number, start: number, dur: number) => {
+      const tone = (freq: number, start: number, dur: number, vol = 0.4) => {
         const osc = ctx!.createOscillator();
         const gain = ctx!.createGain();
-        osc.type = 'sine';
+        osc.type = 'triangle';
         osc.frequency.value = freq;
         gain.gain.setValueAtTime(0, now + start);
-        gain.gain.linearRampToValueAtTime(0.25, now + start + 0.02);
+        gain.gain.linearRampToValueAtTime(vol, now + start + 0.015);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + start + dur);
         osc.connect(gain);
         gain.connect(ctx!.destination);
         osc.start(now + start);
         osc.stop(now + start + dur);
       };
-      tone(880, 0, 0.25);
-      tone(1174.66, 0.16, 0.3);
+      // Ascending 4-note motif, played twice — distinctive and hard to miss
+      const motif = [1046.5, 1318.5, 1568.0, 2093.0]; // C6 E6 G6 C7
+      const step = 0.13;
+      [0, 0.72].forEach(offset => {
+        motif.forEach((freq, i) => {
+          const last = i === motif.length - 1;
+          tone(freq, offset + i * step, last ? 0.4 : 0.18, last ? 0.45 : 0.4);
+        });
+      });
     } catch { /* ignore */ }
   }, []);
 
@@ -331,9 +336,7 @@ export default function AdminPage() {
         if (fresh.length > 0) {
           const newest = [...fresh].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
           setNewCount(c => c + fresh.length);
-          setToast({ count: fresh.length, name: newest.name });
-          if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
-          toastTimerRef.current = window.setTimeout(() => setToast(null), 8000);
+          setToast({ count: fresh.length, booking: newest });
           if (notifEnabledRef.current) playChime();
         }
       }
@@ -984,19 +987,57 @@ export default function AdminPage() {
 
       {/* New booking toast */}
       {toast && (
-        <div className="fixed bottom-5 right-5 z-[60]">
-          <button
-            onClick={() => { setToast(null); clearNew(); }}
-            className="flex items-center gap-3 bg-white border border-gray-200 shadow-2xl rounded-2xl pl-4 pr-5 py-3.5 hover:shadow-xl transition-all max-w-[340px] text-left"
-          >
-            <span className="flex-shrink-0 w-10 h-10 rounded-xl bg-[#efbf04]/20 flex items-center justify-center text-xl">🔔</span>
-            <span className="min-w-0">
-              <span className="block text-sm font-bold text-gray-900">
-                {toast.count > 1 ? `${toast.count} ${tr.newBookings}` : tr.newBooking}
-              </span>
-              <span className="block text-xs text-gray-500 mt-0.5 truncate">{toast.name}</span>
-            </span>
-          </button>
+        <div className="fixed bottom-5 right-5 z-[60] w-[360px] max-w-[calc(100vw-2.5rem)]">
+          <div className="relative bg-white border border-gray-200 shadow-2xl rounded-2xl overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center gap-3 px-4 pt-3.5 pb-3">
+              <span className="flex-shrink-0 w-10 h-10 rounded-xl bg-[#efbf04]/20 flex items-center justify-center text-xl">🔔</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-gray-900 leading-tight">
+                  {toast.count > 1 ? `${toast.count} ${tr.newBookings}` : tr.newBooking}
+                </p>
+                <p className="text-xs text-gray-400 font-mono truncate">{toast.booking.id}</p>
+              </div>
+              <button
+                onClick={() => { setToast(null); }}
+                className="flex-shrink-0 w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-all"
+                aria-label="Close"
+              >
+                <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Details */}
+            <div className="px-4 pb-3 space-y-2">
+              <p className="text-sm font-bold text-gray-900 truncate">{toast.booking.name}</p>
+              <p className="text-xs text-gray-500">📞 {toast.booking.phone}</p>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="w-2 h-2 rounded-full bg-[#efbf04] flex-shrink-0" />
+                  <span className="text-xs text-gray-700 truncate">{toast.booking.from}</span>
+                </div>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0" />
+                  <span className="text-xs text-gray-700 truncate">{toast.booking.to}</span>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 pt-0.5">
+                <span>⏰ {toast.booking.departureTime}</span>
+                <span>👤 {toast.booking.passengers} {tr.passengersLabel}</span>
+                {toast.booking.price > 0 && <span className="font-semibold text-gray-900">{toast.booking.price} SEK</span>}
+              </div>
+            </div>
+
+            {/* Action */}
+            <button
+              onClick={() => { setSelectedBooking(toast.booking); setToast(null); clearNew(); }}
+              className="w-full py-2.5 bg-[#efbf04] text-black text-sm font-semibold hover:brightness-95 transition-all"
+            >
+              {tr.bookingDetails} →
+            </button>
+          </div>
         </div>
       )}
     </div>
