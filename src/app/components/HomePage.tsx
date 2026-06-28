@@ -148,7 +148,7 @@ export default function HomePage() {
       setName('');
       setEmail('');
       setPhone('');
-      setTimeout(() => setBookingSuccess(false), 4000);
+      setTimeout(() => setBookingSuccess(false), 8000);
     } catch {
       setBookingError(lang === 'en' ? 'Booking failed. Please try again.' : 'Bokning misslyckades. Försök igen.');
     }

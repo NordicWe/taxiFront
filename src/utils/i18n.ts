@@ -30,7 +30,7 @@ export const t = {
     childSeat: 'Child Seat',
     petFriendly: 'Pet Friendly',
     bookNow: 'Book Now',
-    bookingSuccess: 'Booking confirmed! We will contact you shortly.',
+    bookingSuccess: 'We have received your booking request! If we can accept it, we will send you a confirmation email.',
 
     // Time modal
     selectDepartureTime: 'Select Departure Time',
@@ -174,7 +174,7 @@ export const t = {
     childSeat: 'Barnstol',
     petFriendly: 'Husdjursvänlig',
     bookNow: 'Boka nu',
-    bookingSuccess: 'Bokning bekräftad! Vi kontaktar dig snart.',
+    bookingSuccess: 'Vi har tagit emot din bokningsförfrågan! Om vi kan acceptera den skickar vi en bekräftelse via e-post.',
 
     // Time modal
     selectDepartureTime: 'Välj avgångstid',
